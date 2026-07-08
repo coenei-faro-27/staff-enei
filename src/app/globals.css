@@ -1,26 +1,60 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Enable class-based dark mode toggle in Tailwind CSS v4 */
+@custom-variant dark (&:where(.dark, .dark *));
 
-@theme inline {
+@theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-secondary-bg: var(--secondary-bg);
+  --color-border-custom: var(--border-custom);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-brand-primary: var(--brand-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #ffffff;
+  --foreground: #111827;
+  --secondary-bg: #f9fafb;
+  --border-custom: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --brand-primary: #0f172a;
+}
+
+/* 
+  Class-based dark mode variables. 
+  JS (Sidebar.tsx) automatically syncs prefers-color-scheme with the .dark class on page load.
+*/
+.dark {
+  --background: #020617;
+  --foreground: #f9fafb;
+  --secondary-bg: #0f172a;
+  --border-custom: #1e293b;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --brand-primary: #ffffff;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-150%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
