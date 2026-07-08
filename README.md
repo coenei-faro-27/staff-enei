@@ -1,6 +1,5 @@
 # 🚀 ENEI 2027 - Staff Portal
-
-![ENEI 2027 Staff Portal](https://raw.githubusercontent.com/coenei-faro-27/staff-enei/main/public/ENEI-logo.svg)
+<img src="https://raw.githubusercontent.com/coenei-faro-27/staff-enei/main/public/ENEI-logo.svg" alt="ENEI Logo" width="100" />
 
 > Portal oficial de gestão interna e organização para a equipa do **Encontro Nacional de Estudantes de Informática (ENEI 2027)**.
 
