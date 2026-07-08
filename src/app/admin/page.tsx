@@ -145,8 +145,7 @@ export default function AdminPage() {
         const profile = await profileService.getProfile()
         setCurrentAdmin(profile)
         
-        // In local mode we allow anyone to access admin for testing, 
-        // in Supabase we strictly require 'admin' role
+        // Restrict admin access in Supabase mode
         if (isSupabaseConfigured() && profile.role !== 'admin') {
           router.push('/')
           return

@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [localMode] = useState(() => !isSupabaseConfigured())
 
-  // Password Reset View states
+  // Reset password states
   const [showResetView, setShowResetView] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetSuccess, setResetSuccess] = useState(false)
@@ -30,28 +30,22 @@ export default function LoginPage() {
     setErrorMsg(null)
 
     if (localMode) {
-      // --------------------------------------------------
-      // LOCAL MODE AUTH SIMULATION
-      // --------------------------------------------------
-      // Let's simulate a 800ms loading check
+      // Local mode authentication
       await new Promise(resolve => setTimeout(resolve, 800))
       
-      // Simple credential check
       if (email.trim() && password.length >= 6) {
-        document.cookie = "enei_local_auth=true; path=/; max-age=86400" // 1 day cookie
+        document.cookie = "enei_local_auth=true; path=/; max-age=86400"
         window.location.href = '/'
       } else {
         setErrorMsg('Credenciais inválidas. O e-mail deve ser preenchido e a palavra-passe deve ter pelo menos 6 caracteres.')
         setLoading(false)
       }
     } else {
-      // --------------------------------------------------
-      // SUPABASE AUTHENTICATION
-      // --------------------------------------------------
+      // Supabase authentication
       try {
         let finalEmail = email.trim()
         
-        // Resolve platform email (e.g. joao.silva or joao.silva@coenei.pt) to real email
+        // Resolve platform login prefix/email to contact email
         if (!finalEmail.includes('@') || finalEmail.endsWith('@coenei.pt')) {
           const resolved = await resolveLoginEmailAction(finalEmail)
           if (resolved) {
@@ -89,7 +83,7 @@ export default function LoginPage() {
     setResetSuccess(false)
 
     if (localMode) {
-      // Simulate 800ms API call
+      // Local simulation
       await new Promise(resolve => setTimeout(resolve, 800))
       setResetSuccess(true)
       setLoading(false)
@@ -97,7 +91,7 @@ export default function LoginPage() {
       try {
         let finalEmail = resetEmail.trim()
         
-        // Resolve platform email prefix to real email
+        // Resolve platform login prefix/email to contact email
         if (!finalEmail.includes('@') || finalEmail.endsWith('@coenei.pt')) {
           const resolved = await resolveLoginEmailAction(finalEmail)
           if (resolved) {

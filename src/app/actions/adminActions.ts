@@ -90,7 +90,7 @@ export async function inviteUserAction(
   const loginEmail = `${loginEmailPrefix.trim()}@coenei.pt`
 
   if (!isAdminClientConfigured()) {
-    // Local simulation fallback
+    // Local simulation
     console.log(`[Local Simulation] Invited user to ${realEmail} with login email ${loginEmail}, role ${role} in department ${department}`)
     return { success: true, message: 'Simulação: Convite enviado com sucesso localmente.' }
   }
@@ -98,7 +98,7 @@ export async function inviteUserAction(
   try {
     const adminClient = createAdminClient()
     
-    // 1. Trigger invitation email in Supabase Auth to the REAL email address
+    // Send auth invitation to real email
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(realEmail, {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/set-password`
     })
@@ -106,7 +106,7 @@ export async function inviteUserAction(
     if (error) throw error
     if (!data?.user) throw new Error('Erro ao gerar conta do utilizador.')
 
-    // 2. Pre-create user profile with real contact email and platform login email
+    // Create user profile
     const { error: profileError } = await adminClient
       .from('profiles')
       .upsert({

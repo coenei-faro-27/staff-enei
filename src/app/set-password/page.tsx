@@ -20,13 +20,12 @@ export default function SetPasswordPage() {
   const [localMode] = useState(() => !isSupabaseConfigured())
 
   useEffect(() => {
-    // In Supabase mode, the access token is automatically captured from the URL hash
-    // by the client SDK and initializes a session.
+    // Check active session
     if (!localMode) {
       const supabase = createClient()
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) {
-          // If there's no active session (i.e. link is expired or invalid), show a warning
+          // Warning if no active session
           console.warn('Nenhuma sessão ativa encontrada. O link pode ter expirado.')
         }
       })
@@ -51,7 +50,7 @@ export default function SetPasswordPage() {
     }
 
     if (localMode) {
-      // Local Mode Simulation
+      // Local mode
       await new Promise(resolve => setTimeout(resolve, 1000))
       setSuccess(true)
       setLoading(false)
@@ -59,7 +58,7 @@ export default function SetPasswordPage() {
         window.location.href = '/login'
       }, 2000)
     } else {
-      // Supabase Authentication password update
+      // Supabase password update
       try {
         const supabase = createClient()
         const { error } = await supabase.auth.updateUser({
@@ -71,7 +70,7 @@ export default function SetPasswordPage() {
         setSuccess(true)
         setLoading(false)
         
-        // Wait 2 seconds and redirect to home
+        // Redirect to home
         setTimeout(() => {
           window.location.href = '/'
         }, 2000)
