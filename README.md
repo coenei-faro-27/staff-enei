@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 ENEI 2027 - Staff Portal
 
-## Getting Started
+![ENEI 2027 Staff Portal](https://raw.githubusercontent.com/coenei-faro-27/staff-enei/main/public/ENEI-logo.svg)
 
-First, run the development server:
+> Portal oficial de gestão interna e organização para a equipa do **Encontro Nacional de Estudantes de Informática (ENEI 2027)**.
 
+Esta plataforma foi desenvolvida para unificar e otimizar toda a logística, comunicação, tarefas, eventos e documentos da equipa organizadora, garantindo segurança ao nível de base de dados e facilidade de coordenação entre departamentos.
+
+---
+
+## 🌟 Funcionalidades Principais
+
+### 🔒 Autenticação Inovadora (Fluxo de E-mail Duplo)
+- **E-mail da Plataforma:** Cada utilizador tem um e-mail/username único para login (`exemplo@coenei.pt` ou apenas `exemplo`).
+- **E-mail de Contacto Real:** As mensagens de convite, ativação e reset de palavra-passe são enviadas para o e-mail real e válido do utilizador (ex: Gmail).
+- **Sem Palavra-passe Inicial:** O administrador convida o membro inserindo o username da plataforma e o e-mail real. O utilizador recebe um convite no e-mail real para definir a sua palavra-passe no primeiro acesso.
+
+### 👤 Painel de Administração Avançado
+- **Mapeamento em Cascata:** No formulário de convite, a seleção de **Cargo** fica oculta até que o **Departamento** seja selecionado, prevenindo atribuições inválidas.
+  - **Mesa:** Cargos específicos (`Presidente`, `Vice-Presidente`, `Administrador`, `Tesoureiro`, `Representante de LEI/Lesti/EEC`, `Secretário(a)`).
+  - **Outros Departamentos:** Cargos padrão (`Diretor`, `Co-diretor`, `Membro`).
+- **Gestão de Acessos:** Ativação e desativação (soft delete) imediata de utilizadores da organização.
+- **Recuperação Manual:** Botão para enviar um link de redefinição de palavra-passe diretamente para o e-mail real do membro.
+
+### 📋 Quadro de Tarefas (Tasks)
+- Criação e acompanhamento de afazeres.
+- Atribuição de tarefas a membros específicos e associação a departamentos.
+- Filtros por departamento, atribuídas a mim, criadas por mim e tarefas gerais.
+- Permissões dinâmicas: Apenas a Mesa (acesso global), Diretores do departamento e o criador/atribuído podem atualizar ou apagar a tarefa.
+
+### 📅 Calendário & Linha Temporal (Timeline)
+- Visualização mensal e lista cronológica de todas as atividades, reuniões e marcos do ENEI 2027.
+- Permissões de escrita restritas a administradores, diretores e membros da Mesa.
+
+### 📂 Gestão de Documentos (Storage)
+- Repositório interno com pastas organizadas por departamento.
+- **Pasta Privada (Apenas Eu):** Upload de ficheiros pessoais visíveis apenas pelo próprio utilizador, independente do departamento.
+- Integração direta com o Supabase Storage.
+
+### 📞 Diretório de Contactos e Parcerias
+- Gestão de entidades externas, oradores, patrocinadores e parceiros do evento.
+- Classificação por tipo e níveis de contacto.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Frontend:** [Next.js 16](https://nextjs.org/) (App Router), React 19, TailwindCSS, Lucide Icons.
+- **Backend / Base de Dados:** [Supabase](https://supabase.com/) (PostgreSQL, Supabase Auth, Supabase Storage).
+- **Segurança:** Políticas estritas de Row Level Security (RLS) baseadas no departamento (`Mesa` vs. Outros) e no estado ativo do utilizador.
+
+---
+
+## 🚀 Como Executar Localmente
+
+### 1. Clonar o repositório
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/coenei-faro-27/staff-enei.git
+cd staff-enei
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Instalar dependências
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Configurar variáveis de ambiente
+Cria um ficheiro `.env.local` na raiz do projeto com as seguintes chaves:
+```env
+NEXT_PUBLIC_SUPABASE_URL=a-tua-url-do-supabase
+NEXT_PUBLIC_SUPABASE_ANON_KEY=a-tua-chave-anon-do-supabase
+SUPABASE_SERVICE_ROLE_KEY=a-tua-chave-service-role-do-supabase
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+> **Nota:** Se as variáveis do Supabase não estiverem configuradas, a plataforma entrará automaticamente em **Modo Local Simulado (LocalStorage)** para que possas testar a interface de forma offline.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Executar o servidor de desenvolvimento
+```bash
+npm run dev
+```
+Abre [http://localhost:3000](http://localhost:3000) no teu navegador.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🗄️ Estrutura de Permissões (Supabase RLS)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+As permissões do banco de dados seguem a seguinte hierarquia:
+- **Administrador / Mesa:** Leitura e escrita global em tarefas, eventos, contactos e documentos públicos.
+- **Diretores / Co-Diretores:** Leitura e escrita apenas no âmbito do seu próprio departamento.
+- **Membros:** Leitura do departamento e escrita apenas em registos pessoais (ex: tarefas criadas por si ou atribuídas a si).
+- **Privado:** Documentos na pasta `Privado` são protegidos por RLS baseada no ID do proprietário (`owner = auth.uid()`).
