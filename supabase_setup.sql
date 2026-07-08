@@ -170,6 +170,24 @@ create policy "Eliminação de eventos" on public.events for delete using (
 -- 3. TABELA DE CONTACTOS (contact_entities & contacts)
 -- ========================================================
 
+create table if not exists public.contact_entities (
+  id uuid default gen_random_uuid() primary key,
+  name text not null,
+  description text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+create table if not exists public.contacts (
+  id uuid default gen_random_uuid() primary key,
+  entity_id uuid references public.contact_entities on delete cascade,
+  name text not null,
+  role text,
+  email text,
+  phone text,
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 alter table public.contact_entities enable row level security;
 alter table public.contacts enable row level security;
 
