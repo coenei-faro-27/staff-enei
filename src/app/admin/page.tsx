@@ -22,7 +22,6 @@ import { inviteUserAction, updateUserRoleAndDeptAction, setUserActiveAction, sen
 interface AdminProfile extends UserProfile {
   email?: string | null
   login_email?: string | null
-  is_active: boolean
 }
 
 const DEPARTMENT_ROLES: Record<string, { value: string; label: string }[]> = {
@@ -112,11 +111,11 @@ export default function AdminPage() {
 
       const localUser = await profileService.getProfile()
       const mockUsers: AdminProfile[] = [
-        { ...localUser, email: 'david@enei.pt', role: 'admin', department: 'Mesa', is_active: true, is_pending: false },
-        { id: 'user-2', full_name: 'Ana Silva', email: 'ana.silva@enei.pt', role: 'Presidente', department: 'Mesa', avatar_color: 'bg-emerald-500', is_active: true, is_pending: false },
-        { id: 'user-3', full_name: 'Pedro Santos', email: 'pedro.santos@enei.pt', role: 'Diretor', department: 'Logística', avatar_color: 'bg-amber-500', is_active: true, is_pending: false },
-        { id: 'user-4', full_name: 'Inês Costa', email: 'ines.costa@enei.pt', role: 'Co-diretor', department: 'Marketing', avatar_color: 'bg-rose-500', is_active: true, is_pending: false },
-        { id: 'user-5', full_name: 'Rita Oliveira', email: 'rita.oliveira@enei.pt', role: 'Membro', department: 'Marketing', avatar_color: 'bg-violet-500', is_active: false, is_pending: false }
+        { ...localUser, email: 'david@enei.pt', role: 'admin', department: 'Mesa', account_state: 'active' },
+        { id: 'user-2', full_name: 'Ana Silva', email: 'ana.silva@enei.pt', role: 'Presidente', department: 'Mesa', avatar_color: 'bg-emerald-500', account_state: 'active' },
+        { id: 'user-3', full_name: 'Pedro Santos', email: 'pedro.santos@enei.pt', role: 'Diretor', department: 'Logística', avatar_color: 'bg-amber-500', account_state: 'active' },
+        { id: 'user-4', full_name: 'Inês Costa', email: 'ines.costa@enei.pt', role: 'Co-diretor', department: 'Marketing', avatar_color: 'bg-rose-500', account_state: 'active' },
+        { id: 'user-5', full_name: 'Rita Oliveira', email: 'rita.oliveira@enei.pt', role: 'Membro', department: 'Marketing', avatar_color: 'bg-violet-500', account_state: 'inactive' }
       ]
       localStorage.setItem('enei_simulated_users', JSON.stringify(mockUsers))
       setProfiles(mockUsers)
@@ -197,8 +196,7 @@ export default function AdminPage() {
             role: inviteRole,
             department: inviteDept,
             avatar_color: 'bg-indigo-500',
-            is_active: true,
-            is_pending: true
+            account_state: 'pending'
           }
           const updated = [...profiles, newSimulated]
           localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
@@ -285,23 +283,23 @@ export default function AdminPage() {
   }
 
   const handleToggleActive = async (userId: string, currentActive: boolean) => {
-    const nextState = !currentActive
+    const nextState = currentActive ? 'inactive' : 'active'
     try {
-      const result = await setUserActiveAction(userId, nextState)
+      const result = await setUserActiveAction(userId, !currentActive)
       
       if (result.success) {
         showToast(
-          nextState ? 'success' : 'delete', 
-          nextState ? 'Utilizador ativado com sucesso.' : 'Utilizador desativado com sucesso (Soft Delete).'
+          !currentActive ? 'success' : 'delete', 
+          !currentActive ? 'Utilizador ativado com sucesso.' : 'Utilizador desativado com sucesso (Soft Delete).'
         )
         
         // Update state locally
         setProfiles(prev => 
-          prev.map(p => p.id === userId ? { ...p, is_active: nextState } : p)
+          prev.map(p => p.id === userId ? { ...p, account_state: nextState } : p)
         )
         
         if (!isSupabaseConfigured()) {
-          const updated = profiles.map(p => p.id === userId ? { ...p, is_active: nextState } : p)
+          const updated = profiles.map(p => p.id === userId ? { ...p, account_state: nextState } : p)
           localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
         }
       } else {
@@ -322,7 +320,7 @@ export default function AdminPage() {
   const handleSimulateLogin = async (userId: string) => {
     try {
       if (!isSupabaseConfigured()) {
-        const updated = profiles.map(p => p.id === userId ? { ...p, is_pending: false } : p)
+        const updated = profiles.map(p => p.id === userId ? { ...p, account_state: 'active' } : p)
         localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
         setProfiles(updated)
         showToast('success', 'Simulação: Primeiro login efetuado com sucesso!')
@@ -332,8 +330,8 @@ export default function AdminPage() {
     }
   }
 
-  const pendingProfiles = profiles.filter(p => p.is_pending)
-  const regularProfiles = profiles.filter(p => !p.is_pending)
+  const pendingProfiles = profiles.filter(p => p.account_state === 'pending')
+  const regularProfiles = profiles.filter(p => p.account_state !== 'pending')
 
   const renderUserTable = (usersList: AdminProfile[], isPendingSection: boolean) => {
     return (
@@ -351,146 +349,150 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-custom/50">
-              {usersList.map((user) => (
-                <tr 
-                  key={user.id} 
-                  className={`transition-colors hover:bg-background/20 ${
-                    !user.is_active ? 'opacity-50 bg-background/10' : ''
-                  }`}
-                >
-                  {/* Name and Initials */}
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-8 w-8 rounded-md flex items-center justify-center font-bold text-white shadow-sm shrink-0 select-none ${user.avatar_color}`}>
-                        {getInitials(user.full_name)}
+              {usersList.map((user) => {
+                const isUserInactive = user.account_state === 'inactive'
+                const isUserNotInactive = user.account_state !== 'inactive'
+                return (
+                  <tr 
+                    key={user.id} 
+                    className={`transition-colors hover:bg-background/20 ${
+                      isUserInactive ? 'opacity-50 bg-background/10' : ''
+                    }`}
+                  >
+                    {/* Name and Initials */}
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-8 w-8 rounded-md flex items-center justify-center font-bold text-white shadow-sm shrink-0 select-none ${user.avatar_color}`}>
+                          {getInitials(user.full_name)}
+                        </div>
+                        <div>
+                          <span className={`font-semibold text-text-primary block ${isUserInactive ? 'line-through opacity-60' : ''}`}>
+                            {user.full_name}
+                          </span>
+                          {user.login_email && (
+                            <span className="text-[10px] text-text-secondary block font-mono">
+                              @{user.login_email.split('@')[0]}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <span className={`font-semibold text-text-primary block ${!user.is_active ? 'line-through opacity-60' : ''}`}>
-                          {user.full_name}
+                    </td>
+
+                    {/* Email */}
+                    <td className="p-4 text-text-secondary font-medium">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-text-primary block text-xs" title="E-mail Real (Contacto)">
+                          {user.email || 'Não associado'}
                         </span>
                         {user.login_email && (
-                          <span className="text-[10px] text-text-secondary block font-mono">
-                            @{user.login_email.split('@')[0]}
+                          <span className="text-[10px] text-brand-primary block font-semibold font-mono" title="E-mail de Login">
+                            {user.login_email}
                           </span>
                         )}
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* Email */}
-                  <td className="p-4 text-text-secondary font-medium">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-text-primary block text-xs" title="E-mail Real (Contacto)">
-                        {user.email || 'Não associado'}
-                      </span>
-                      {user.login_email && (
-                        <span className="text-[10px] text-brand-primary block font-semibold font-mono" title="E-mail de Login">
-                          {user.login_email}
+                    {/* Role Dropdown */}
+                    <td className="p-4">
+                      <select
+                        value={user.role}
+                        disabled={isUserInactive || user.id === currentAdmin?.id}
+                        onChange={(e) => handleRoleDeptChange(user.id, e.target.value, user.department)}
+                        className="border border-border-custom bg-background text-text-primary focus:border-brand-primary focus:outline-none rounded-md px-2 py-1 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+                      >
+                        {user.role === 'admin' && (
+                          <option value="admin">Admin</option>
+                        )}
+                        {(DEPARTMENT_ROLES[user.department] || [
+                          { value: 'Diretor', label: 'Diretor' },
+                          { value: 'Co-diretor', label: 'Co-diretor' },
+                          { value: 'Membro', label: 'Membro' }
+                        ]).map((r) => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Dept Dropdown */}
+                    <td className="p-4">
+                      <select
+                        value={user.department}
+                        disabled={isUserInactive || user.id === currentAdmin?.id}
+                        onChange={(e) => handleRoleDeptChange(user.id, user.role, e.target.value)}
+                        className="border border-border-custom bg-background text-text-primary focus:border-brand-primary focus:outline-none rounded-md px-2 py-1 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+                      >
+                        {DEPARTMENTS.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Active/Inactive/Pending Badge */}
+                    <td className="p-4">
+                      {isPendingSection ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
+                          Pendente
                         </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Role Dropdown */}
-                  <td className="p-4">
-                    <select
-                      value={user.role}
-                      disabled={!user.is_active || user.id === currentAdmin?.id}
-                      onChange={(e) => handleRoleDeptChange(user.id, e.target.value, user.department)}
-                      className="border border-border-custom bg-background text-text-primary focus:border-brand-primary focus:outline-none rounded-md px-2 py-1 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
-                    >
-                      {user.role === 'admin' && (
-                        <option value="admin">Admin</option>
-                      )}
-                      {(DEPARTMENT_ROLES[user.department] || [
-                        { value: 'Diretor', label: 'Diretor' },
-                        { value: 'Co-diretor', label: 'Co-diretor' },
-                        { value: 'Membro', label: 'Membro' }
-                      ]).map((r) => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
-                      ))}
-                    </select>
-                  </td>
-
-                  {/* Dept Dropdown */}
-                  <td className="p-4">
-                    <select
-                      value={user.department}
-                      disabled={!user.is_active || user.id === currentAdmin?.id}
-                      onChange={(e) => handleRoleDeptChange(user.id, user.role, e.target.value)}
-                      className="border border-border-custom bg-background text-text-primary focus:border-brand-primary focus:outline-none rounded-md px-2 py-1 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
-                    >
-                      {DEPARTMENTS.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </td>
-
-                  {/* Active/Inactive/Pending Badge */}
-                  <td className="p-4">
-                    {isPendingSection ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
-                        Pendente
-                      </span>
-                    ) : user.is_active ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        Ativo
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-500 border border-red-500/20">
-                        Inativo
-                      </span>
-                    )}
-                  </td>
-
-                  {/* Actions Toggle Active/Inactive */}
-                  <td className="p-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {user.id !== currentAdmin?.id ? (
-                        <>
-                          {/* Simulate Login (only local mode and if pending) */}
-                          {!isSupabaseConfigured() && isPendingSection && (
-                            <button
-                              onClick={() => handleSimulateLogin(user.id)}
-                              className="inline-flex items-center justify-center p-1.5 rounded-md border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-950/40 transition-all cursor-pointer animate-pulse"
-                              title="Simular Primeiro Login"
-                            >
-                              <CheckCircle size={14} />
-                            </button>
-                          )}
-
-                          {/* Reset Password Button */}
-                          <button
-                            onClick={() => handleResetPassword(user.email)}
-                            disabled={!user.email || !user.is_active}
-                            className="inline-flex items-center justify-center p-1.5 rounded-md border border-brand-primary/20 text-brand-primary hover:bg-brand-primary hover:text-background transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Enviar Reset de Password"
-                          >
-                            <KeyRound size={14} />
-                          </button>
-
-                          {/* Toggle Active/Inactive Button */}
-                          <button
-                            onClick={() => handleToggleActive(user.id, user.is_active)}
-                            className={`inline-flex items-center justify-center p-1.5 rounded-md border transition-all cursor-pointer ${
-                              user.is_active
-                                ? 'border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white dark:hover:bg-red-950/40'
-                                : 'border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-950/40'
-                            }`}
-                            title={user.is_active ? "Desativar Conta" : "Ativar Conta"}
-                          >
-                            {user.is_active ? <UserMinus size={14} /> : <UserCheck size={14} />}
-                          </button>
-                        </>
+                      ) : user.account_state === 'active' ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          Ativo
+                        </span>
                       ) : (
-                        <span className="text-[10px] text-text-secondary select-none font-medium italic pr-2">
-                          Sua Conta
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-500 border border-red-500/20">
+                          Inativo
                         </span>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+
+                    {/* Actions Toggle Active/Inactive */}
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {user.id !== currentAdmin?.id ? (
+                          <>
+                            {/* Simulate Login (only local mode and if pending) */}
+                            {!isSupabaseConfigured() && isPendingSection && (
+                              <button
+                                onClick={() => handleSimulateLogin(user.id)}
+                                className="inline-flex items-center justify-center p-1.5 rounded-md border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-950/40 transition-all cursor-pointer animate-pulse"
+                                title="Simular Primeiro Login"
+                              >
+                                <CheckCircle size={14} />
+                              </button>
+                            )}
+
+                            {/* Reset Password Button */}
+                            <button
+                              onClick={() => handleResetPassword(user.email)}
+                              disabled={!user.email || isUserInactive}
+                              className="inline-flex items-center justify-center p-1.5 rounded-md border border-brand-primary/20 text-brand-primary hover:bg-brand-primary hover:text-background transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Enviar Reset de Password"
+                            >
+                              <KeyRound size={14} />
+                            </button>
+
+                            {/* Toggle Active/Inactive Button */}
+                            <button
+                              onClick={() => handleToggleActive(user.id, isUserNotInactive)}
+                              className={`inline-flex items-center justify-center p-1.5 rounded-md border transition-all cursor-pointer ${
+                                isUserNotInactive
+                                  ? 'border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white dark:hover:bg-red-950/40'
+                                  : 'border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-950/40'
+                              }`}
+                              title={isUserNotInactive ? "Desativar Conta" : "Ativar Conta"}
+                            >
+                              {isUserNotInactive ? <UserMinus size={14} /> : <UserCheck size={14} />}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-text-secondary select-none font-medium italic pr-2">
+                            Sua Conta
+                        </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

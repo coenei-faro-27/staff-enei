@@ -59,9 +59,9 @@ export default function SetPasswordPage() {
         if (stored) {
           try {
             const users = JSON.parse(stored)
-            const pendingUser = users.find((u: { is_pending?: boolean }) => u.is_pending)
+            const pendingUser = users.find((u: { account_state?: string }) => u.account_state === 'pending')
             if (pendingUser) {
-              pendingUser.is_pending = false
+              pendingUser.account_state = 'active'
               localStorage.setItem('enei_simulated_users', JSON.stringify(users))
             }
           } catch (e) {

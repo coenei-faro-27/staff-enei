@@ -41,7 +41,7 @@ async function verifyAdminAuth(): Promise<void> {
 
   const { data: profile, error: dbError } = await supabase
     .from('profiles')
-    .select('role, is_active')
+    .select('role, account_state')
     .eq('id', user.id)
     .single()
 
@@ -49,7 +49,7 @@ async function verifyAdminAuth(): Promise<void> {
     throw new Error('Unauthorized: Perfil não encontrado.')
   }
 
-  if (profile.role !== 'admin' || !profile.is_active) {
+  if (profile.role !== 'admin' || profile.account_state !== 'active') {
     throw new Error('Forbidden: Acesso restrito a administradores ativos.')
   }
 }
@@ -136,8 +136,7 @@ export async function inviteUserAction(
         role,
         department,
         avatar_color: 'bg-indigo-500',
-        is_active: true,
-        is_pending: true
+        account_state: 'pending'
       })
 
     if (profileError) throw profileError
@@ -204,7 +203,7 @@ export async function updateUserRoleAndDeptAction(targetUserId: string, role: st
 }
 
 /**
- * Soft deletes/restores a user profile by toggle is_active flag
+ * Soft deletes/restores a user profile by toggle account_state flag
  */
 export async function setUserActiveAction(targetUserId: string, is_active: boolean) {
   await verifyAdminAuth()
@@ -217,7 +216,7 @@ export async function setUserActiveAction(targetUserId: string, is_active: boole
     const adminClient = createAdminClient()
     const { error } = await adminClient
       .from('profiles')
-      .update({ is_active })
+      .update({ account_state: is_active ? 'active' : 'inactive' })
       .eq('id', targetUserId)
 
     if (error) throw error

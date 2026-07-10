@@ -8,7 +8,7 @@ export interface UserProfile {
   avatar_color: string
   email?: string | null
   login_email?: string | null
-  is_pending?: boolean
+  account_state: 'active' | 'pending' | 'inactive'
 }
 
 const isSupabaseConfigured = () => {
@@ -43,7 +43,8 @@ export const profileService = {
         department: 'Geral',
         avatar_color: 'bg-indigo-500',
         email: 'david@enei.pt',
-        login_email: 'david@enei.pt'
+        login_email: 'david@enei.pt',
+        account_state: 'active'
       }
       if (typeof window !== 'undefined') {
         localStorage.setItem('enei_user_profile', JSON.stringify(defaultProfile))
@@ -78,7 +79,8 @@ export const profileService = {
         department: 'Geral',
         avatar_color: 'bg-indigo-500',
         email: user.email,
-        login_email: user.email
+        login_email: user.email,
+        account_state: 'active'
       }
 
       await supabase.from('profiles').upsert(defaultProfile)
@@ -88,14 +90,14 @@ export const profileService = {
       return defaultProfile
     }
 
-    let isPending = data.is_pending
-    if (isPending) {
+    let accountState = data.account_state || 'active'
+    if (accountState === 'pending') {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ is_pending: false })
+        .update({ account_state: 'active' })
         .eq('id', user.id)
       if (!updateError) {
-        isPending = false
+        accountState = 'active'
       }
     }
 
@@ -107,7 +109,7 @@ export const profileService = {
       avatar_color: data.avatar_color || 'bg-indigo-500',
       email: data.email,
       login_email: data.login_email,
-      is_pending: isPending
+      account_state: accountState
     }
 
     if (typeof window !== 'undefined') {
@@ -162,8 +164,8 @@ export const profileService = {
         if (stored) {
           try {
             const users = JSON.parse(stored)
-            const activeAndNotPending = users.filter((u: { is_active: boolean; is_pending?: boolean }) => u.is_active && !u.is_pending).length
-            return activeAndNotPending
+            const activeCount = users.filter((u: { account_state: string }) => u.account_state === 'active').length
+            return activeCount
           } catch {}
         }
       }
@@ -174,8 +176,7 @@ export const profileService = {
       const { count, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .eq('is_pending', false)
+        .eq('account_state', 'active')
       if (error) throw error
       return count || 0
     } catch (e) {

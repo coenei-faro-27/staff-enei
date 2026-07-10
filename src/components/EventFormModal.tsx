@@ -73,7 +73,7 @@ export default function EventFormModal({ isOpen, onClose, onAddEvent }: EventFor
         if (!isSupabaseConfigured()) {
           const stored = localStorage.getItem('enei_simulated_users')
           if (stored) {
-            allProfiles = JSON.parse(stored).filter((u: { is_active: boolean }) => u.is_active)
+            allProfiles = JSON.parse(stored).filter((u: { account_state: string }) => u.account_state === 'active')
           } else {
             allProfiles = [profile]
           }
@@ -82,7 +82,7 @@ export default function EventFormModal({ isOpen, onClose, onAddEvent }: EventFor
           const { data } = await supabase
             .from('profiles')
             .select('*')
-            .eq('is_active', true)
+            .eq('account_state', 'active')
           allProfiles = data || []
         }
 

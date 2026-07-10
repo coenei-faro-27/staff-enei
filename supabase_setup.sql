@@ -8,7 +8,7 @@ language sql
 security definer
 set search_path = public
 as $$
-  select coalesce((select is_active from public.profiles where id = user_id), false);
+  select coalesce((select account_state = 'active' from public.profiles where id = user_id), false);
 $$;
 
 create or replace function public.get_user_role(user_id uuid)
@@ -246,18 +246,36 @@ create table if not exists public.profiles (
   role text default 'membro' not null,
   department text default 'Geral' not null,
   avatar_color text default 'bg-indigo-500' not null,
-  is_active boolean default true not null,
-  is_pending boolean default true not null,
+  account_state text default 'active' not null constraint valid_account_state check (account_state in ('active', 'pending', 'inactive')),
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Garantir colunas se a tabela já existia antes
 alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists login_email text;
-alter table public.profiles add column if not exists is_active boolean default true not null;
-alter table public.profiles alter column is_active set default true;
-alter table public.profiles add column if not exists is_pending boolean default true not null;
-alter table public.profiles alter column is_pending set default true;
+
+-- Migração segura de dados para account_state
+alter table public.profiles add column if not exists account_state text default 'active';
+alter table public.profiles drop constraint if exists valid_account_state;
+alter table public.profiles add constraint valid_account_state check (account_state in ('active', 'pending', 'inactive'));
+alter table public.profiles alter column account_state set not null;
+
+-- Script de UPDATE seguro (apenas corre se as colunas antigas existirem)
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'profiles' and column_name = 'is_active') then
+    update public.profiles 
+    set account_state = case 
+      when is_pending = true then 'pending'
+      when is_active = false then 'inactive'
+      else 'active'
+    end;
+  end if;
+end $$;
+
+-- Drop de colunas antigas após a migração concluída com sucesso
+alter table public.profiles drop column if exists is_active;
+alter table public.profiles drop column if exists is_pending;
 
 -- Ativar RLS
 alter table public.profiles enable row level security;
