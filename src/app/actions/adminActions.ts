@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { createClient as createSupabaseJSClient } from '@supabase/supabase-js'
+import { headers } from 'next/headers'
 
 // Helper to check if Supabase Admin key is configured
 const isAdminClientConfigured = () => {
@@ -98,9 +99,27 @@ export async function inviteUserAction(
   try {
     const adminClient = createAdminClient()
     
+    // Determine dynamic site URL for redirection using headers or fallback env
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl) {
+      try {
+        const headersList = await headers()
+        const host = headersList.get('host')
+        const proto = headersList.get('x-forwarded-proto') || 'https'
+        if (host) {
+          siteUrl = `${proto}://${host}`
+        }
+      } catch (e) {
+        console.warn('Could not read request headers for siteUrl fallback:', e)
+      }
+    }
+    
+    const finalSiteUrl = siteUrl || 'http://localhost:3000'
+    const redirectTo = `${finalSiteUrl}/set-password`
+    
     // Send auth invitation to real email
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(realEmail, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/set-password`
+      redirectTo
     })
 
     if (error) throw error
