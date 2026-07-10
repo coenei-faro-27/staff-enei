@@ -52,6 +52,24 @@ export default function SetPasswordPage() {
     if (localMode) {
       // Local mode
       await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Update simulated user if any is pending
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('enei_simulated_users')
+        if (stored) {
+          try {
+            const users = JSON.parse(stored)
+            const pendingUser = users.find((u: { is_pending?: boolean }) => u.is_pending)
+            if (pendingUser) {
+              pendingUser.is_pending = false
+              localStorage.setItem('enei_simulated_users', JSON.stringify(users))
+            }
+          } catch (e) {
+            console.error('Error updating simulated pending user:', e)
+          }
+        }
+      }
+
       setSuccess(true)
       setLoading(false)
       setTimeout(() => {

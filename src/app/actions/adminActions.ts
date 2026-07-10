@@ -136,7 +136,8 @@ export async function inviteUserAction(
         role,
         department,
         avatar_color: 'bg-indigo-500',
-        is_active: true
+        is_active: true,
+        is_pending: true
       })
 
     if (profileError) throw profileError

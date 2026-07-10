@@ -247,6 +247,7 @@ create table if not exists public.profiles (
   department text default 'Geral' not null,
   avatar_color text default 'bg-indigo-500' not null,
   is_active boolean default true not null,
+  is_pending boolean default true not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -255,6 +256,8 @@ alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists login_email text;
 alter table public.profiles add column if not exists is_active boolean default true not null;
 alter table public.profiles alter column is_active set default true;
+alter table public.profiles add column if not exists is_pending boolean default true not null;
+alter table public.profiles alter column is_pending set default true;
 
 -- Ativar RLS
 alter table public.profiles enable row level security;

@@ -112,11 +112,11 @@ export default function AdminPage() {
 
       const localUser = await profileService.getProfile()
       const mockUsers: AdminProfile[] = [
-        { ...localUser, email: 'david@enei.pt', role: 'admin', department: 'Mesa', is_active: true },
-        { id: 'user-2', full_name: 'Ana Silva', email: 'ana.silva@enei.pt', role: 'Presidente', department: 'Mesa', avatar_color: 'bg-emerald-500', is_active: true },
-        { id: 'user-3', full_name: 'Pedro Santos', email: 'pedro.santos@enei.pt', role: 'Diretor', department: 'Logística', avatar_color: 'bg-amber-500', is_active: true },
-        { id: 'user-4', full_name: 'Inês Costa', email: 'ines.costa@enei.pt', role: 'Co-diretor', department: 'Marketing', avatar_color: 'bg-rose-500', is_active: true },
-        { id: 'user-5', full_name: 'Rita Oliveira', email: 'rita.oliveira@enei.pt', role: 'Membro', department: 'Marketing', avatar_color: 'bg-violet-500', is_active: false }
+        { ...localUser, email: 'david@enei.pt', role: 'admin', department: 'Mesa', is_active: true, is_pending: false },
+        { id: 'user-2', full_name: 'Ana Silva', email: 'ana.silva@enei.pt', role: 'Presidente', department: 'Mesa', avatar_color: 'bg-emerald-500', is_active: true, is_pending: false },
+        { id: 'user-3', full_name: 'Pedro Santos', email: 'pedro.santos@enei.pt', role: 'Diretor', department: 'Logística', avatar_color: 'bg-amber-500', is_active: true, is_pending: false },
+        { id: 'user-4', full_name: 'Inês Costa', email: 'ines.costa@enei.pt', role: 'Co-diretor', department: 'Marketing', avatar_color: 'bg-rose-500', is_active: true, is_pending: false },
+        { id: 'user-5', full_name: 'Rita Oliveira', email: 'rita.oliveira@enei.pt', role: 'Membro', department: 'Marketing', avatar_color: 'bg-violet-500', is_active: false, is_pending: false }
       ]
       localStorage.setItem('enei_simulated_users', JSON.stringify(mockUsers))
       setProfiles(mockUsers)
@@ -197,7 +197,8 @@ export default function AdminPage() {
             role: inviteRole,
             department: inviteDept,
             avatar_color: 'bg-indigo-500',
-            is_active: true
+            is_active: true,
+            is_pending: true
           }
           const updated = [...profiles, newSimulated]
           localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
@@ -318,35 +319,24 @@ export default function AdminPage() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
-      </div>
-    )
+  const handleSimulateLogin = async (userId: string) => {
+    try {
+      if (!isSupabaseConfigured()) {
+        const updated = profiles.map(p => p.id === userId ? { ...p, is_pending: false } : p)
+        localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
+        setProfiles(updated)
+        showToast('success', 'Simulação: Primeiro login efetuado com sucesso!')
+      }
+    } catch {
+      showToast('error', 'Erro ao simular primeiro login.')
+    }
   }
 
-  return (
-    <div className="w-full space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Administração de Utilizadores</h1>
-          <p className="text-sm text-text-secondary">
-            Gere cargos, departamentos, ativa/desativa contas da equipa e envia convites de acesso.
-          </p>
-        </div>
+  const pendingProfiles = profiles.filter(p => p.is_pending)
+  const regularProfiles = profiles.filter(p => !p.is_pending)
 
-        <button
-          onClick={openInviteModal}
-          className="inline-flex items-center justify-center gap-2 bg-brand-primary text-background font-semibold rounded-md px-4 py-2.5 text-xs hover:opacity-90 transition-all cursor-pointer shadow self-start sm:self-auto"
-        >
-          <UserPlus size={14} />
-          <span>Convidar Utilizador</span>
-        </button>
-      </div>
-
-      {/* Users List Container */}
+  const renderUserTable = (usersList: AdminProfile[], isPendingSection: boolean) => {
+    return (
       <div className="border border-border-custom bg-secondary-bg rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
@@ -361,7 +351,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-custom/50">
-              {profiles.map((user) => (
+              {usersList.map((user) => (
                 <tr 
                   key={user.id} 
                   className={`transition-colors hover:bg-background/20 ${
@@ -436,9 +426,13 @@ export default function AdminPage() {
                     </select>
                   </td>
 
-                  {/* Active/Inactive Badge */}
+                  {/* Active/Inactive/Pending Badge */}
                   <td className="p-4">
-                    {user.is_active ? (
+                    {isPendingSection ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
+                        Pendente
+                      </span>
+                    ) : user.is_active ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                         Ativo
                       </span>
@@ -454,6 +448,17 @@ export default function AdminPage() {
                     <div className="flex items-center justify-end gap-1.5">
                       {user.id !== currentAdmin?.id ? (
                         <>
+                          {/* Simulate Login (only local mode and if pending) */}
+                          {!isSupabaseConfigured() && isPendingSection && (
+                            <button
+                              onClick={() => handleSimulateLogin(user.id)}
+                              className="inline-flex items-center justify-center p-1.5 rounded-md border border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-950/40 transition-all cursor-pointer animate-pulse"
+                              title="Simular Primeiro Login"
+                            >
+                              <CheckCircle size={14} />
+                            </button>
+                          )}
+
                           {/* Reset Password Button */}
                           <button
                             onClick={() => handleResetPassword(user.email)}
@@ -489,6 +494,52 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Administração de Utilizadores</h1>
+          <p className="text-sm text-text-secondary">
+            Gere cargos, departamentos, ativa/desativa contas da equipa e envia convites de acesso.
+          </p>
+        </div>
+
+        <button
+          onClick={openInviteModal}
+          className="inline-flex items-center justify-center gap-2 bg-brand-primary text-background font-semibold rounded-md px-4 py-2.5 text-xs hover:opacity-90 transition-all cursor-pointer shadow self-start sm:self-auto"
+        >
+          <UserPlus size={14} />
+          <span>Convidar Utilizador</span>
+        </button>
+      </div>
+
+      {/* Pending Members Card */}
+      {pendingProfiles.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-wider">Membros Pendentes ({pendingProfiles.length})</h2>
+          {renderUserTable(pendingProfiles, true)}
+        </div>
+      )}
+
+      {/* Regular Members Card */}
+      <div className="space-y-3">
+        {pendingProfiles.length > 0 && (
+          <h2 className="text-xs font-bold text-text-primary uppercase tracking-wider">Membros Ativos ({regularProfiles.length})</h2>
+        )}
+        {renderUserTable(regularProfiles, false)}
       </div>
 
       {/* Invite Modal */}

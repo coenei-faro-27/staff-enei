@@ -8,6 +8,7 @@ export interface UserProfile {
   avatar_color: string
   email?: string | null
   login_email?: string | null
+  is_pending?: boolean
 }
 
 const isSupabaseConfigured = () => {
@@ -87,6 +88,17 @@ export const profileService = {
       return defaultProfile
     }
 
+    let isPending = data.is_pending
+    if (isPending) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ is_pending: false })
+        .eq('id', user.id)
+      if (!updateError) {
+        isPending = false
+      }
+    }
+
     const profile: UserProfile = {
       id: data.id,
       full_name: data.full_name || 'Membro do Staff',
@@ -94,7 +106,8 @@ export const profileService = {
       department: data.department || 'Geral',
       avatar_color: data.avatar_color || 'bg-indigo-500',
       email: data.email,
-      login_email: data.login_email
+      login_email: data.login_email,
+      is_pending: isPending
     }
 
     if (typeof window !== 'undefined') {
@@ -144,6 +157,16 @@ export const profileService = {
 
   async getProfilesCount(): Promise<number> {
     if (!isSupabaseConfigured()) {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('enei_simulated_users')
+        if (stored) {
+          try {
+            const users = JSON.parse(stored)
+            const activeAndNotPending = users.filter((u: { is_active: boolean; is_pending?: boolean }) => u.is_active && !u.is_pending).length
+            return activeAndNotPending
+          } catch {}
+        }
+      }
       return 1
     }
     try {
@@ -151,9 +174,10 @@ export const profileService = {
       const { count, error } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .eq('is_pending', false)
       if (error) throw error
-      const total = count || 0
-      return Math.max(0, total - 1)
+      return count || 0
     } catch (e) {
       console.warn('Failed to fetch profiles count from Supabase:', e)
       return 1
