@@ -105,7 +105,11 @@ export default function AdminPage() {
       // Local Mode simulation users
       const stored = localStorage.getItem('enei_simulated_users')
       if (stored) {
-        setProfiles(JSON.parse(stored))
+        const parsed = JSON.parse(stored).map((u: UserProfile) => ({
+          ...u,
+          account_state: u.account_state || (u.is_pending ? 'pending' : u.is_active !== false ? 'active' : 'inactive')
+        }))
+        setProfiles(parsed)
         return
       }
 
@@ -130,7 +134,11 @@ export default function AdminPage() {
         .order('full_name', { ascending: true })
 
       if (error) throw error
-      setProfiles(data || [])
+      const normalized = (data || []).map((u: UserProfile) => ({
+        ...u,
+        account_state: u.account_state || (u.is_pending ? 'pending' : u.is_active !== false ? 'active' : 'inactive')
+      }))
+      setProfiles(normalized)
     } catch (e) {
       console.error('Failed to load profiles:', e)
       showToast('error', 'Falha ao carregar utilizadores da base de dados.')

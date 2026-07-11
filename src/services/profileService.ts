@@ -9,6 +9,8 @@ export interface UserProfile {
   email?: string | null
   login_email?: string | null
   account_state: 'active' | 'pending' | 'inactive'
+  is_active?: boolean
+  is_pending?: boolean
 }
 
 const isSupabaseConfigured = () => {
@@ -90,15 +92,20 @@ export const profileService = {
       return defaultProfile
     }
 
-    let accountState = data.account_state || 'active'
+    let accountState = data.account_state || (data.is_pending ? 'pending' : data.is_active !== false ? 'active' : 'inactive')
     if (accountState === 'pending') {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ account_state: 'active' })
         .eq('id', user.id)
-      if (!updateError) {
-        accountState = 'active'
+      if (updateError) {
+        // Fallback if schema migration has not run yet
+        await supabase
+          .from('profiles')
+          .update({ is_pending: false })
+          .eq('id', user.id)
       }
+      accountState = 'active'
     }
 
     const profile: UserProfile = {
