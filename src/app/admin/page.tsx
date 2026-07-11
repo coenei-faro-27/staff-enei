@@ -309,7 +309,7 @@ export default function AdminPage() {
         if (!isSupabaseConfigured()) {
           const updated = profiles.map(p => p.id === userId ? { 
             ...p, 
-            account_state: nextState,
+            account_state: nextState as 'active' | 'pending' | 'inactive',
             is_active: nextState === 'active'
           } : p)
           localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
@@ -334,7 +334,7 @@ export default function AdminPage() {
       if (!isSupabaseConfigured()) {
         const updated = profiles.map(p => p.id === userId ? { 
           ...p, 
-          account_state: 'active',
+          account_state: 'active' as 'active' | 'pending' | 'inactive',
           is_active: true,
           is_pending: false
         } : p)
