@@ -8,7 +8,7 @@ export interface UserProfile {
   avatar_color: string
   email?: string | null
   login_email?: string | null
-  account_state: 'active' | 'pending' | 'inactive'
+  account_state?: 'active' | 'pending' | 'inactive'
   is_active?: boolean
   is_pending?: boolean
 }
