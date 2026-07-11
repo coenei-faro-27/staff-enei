@@ -307,7 +307,11 @@ export default function AdminPage() {
         )
         
         if (!isSupabaseConfigured()) {
-          const updated = profiles.map(p => p.id === userId ? { ...p, account_state: nextState } : p)
+          const updated = profiles.map(p => p.id === userId ? { 
+            ...p, 
+            account_state: nextState,
+            is_active: nextState === 'active'
+          } : p)
           localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
         }
       } else {
@@ -328,7 +332,12 @@ export default function AdminPage() {
   const handleSimulateLogin = async (userId: string) => {
     try {
       if (!isSupabaseConfigured()) {
-        const updated = profiles.map(p => p.id === userId ? { ...p, account_state: 'active' } : p)
+        const updated = profiles.map(p => p.id === userId ? { 
+          ...p, 
+          account_state: 'active',
+          is_active: true,
+          is_pending: false
+        } : p)
         localStorage.setItem('enei_simulated_users', JSON.stringify(updated))
         setProfiles(updated)
         showToast('success', 'Simulação: Primeiro login efetuado com sucesso!')
@@ -535,6 +544,18 @@ export default function AdminPage() {
           <span>Convidar Utilizador</span>
         </button>
       </div>
+
+      {!isSupabaseConfigured() && (
+        <div className="flex items-start gap-3 border border-amber-500/20 bg-amber-500/5 px-4 py-3.5 rounded-lg text-xs text-text-primary">
+          <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <strong className="block font-semibold text-amber-500">Modo de Simulação Local Ativo</strong>
+            <span className="text-text-secondary leading-normal block">
+              Os dados de utilizadores e convites estão a ser simulados em memória local (LocalStorage) porque as variáveis de ambiente do Supabase não estão configuradas ou ativas neste ambiente local.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Pending Members Card */}
       {pendingProfiles.length > 0 && (
