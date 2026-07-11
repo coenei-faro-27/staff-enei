@@ -171,12 +171,12 @@ export const profileService = {
         if (stored) {
           try {
             const users = JSON.parse(stored)
-            const activeCount = users.filter((u: { account_state: string }) => u.account_state === 'active').length
-            return activeCount
+            const activeCount = users.filter((u: { account_state?: string }) => u.account_state === 'active').length
+            return Math.max(0, activeCount - 1)
           } catch {}
         }
       }
-      return 1
+      return 0
     }
     try {
       const supabase = createClient()
@@ -185,10 +185,11 @@ export const profileService = {
         .select('*', { count: 'exact', head: true })
         .eq('account_state', 'active')
       if (error) throw error
-      return count || 0
+      const total = count || 0
+      return Math.max(0, total - 1)
     } catch (e) {
       console.warn('Failed to fetch profiles count from Supabase:', e)
-      return 1
+      return 0
     }
   }
 }
