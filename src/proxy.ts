@@ -43,8 +43,9 @@ export async function proxy(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     const isSetPasswordPage = request.nextUrl.pathname.startsWith('/set-password')
+    const isAuthCallback = request.nextUrl.pathname.startsWith('/auth')
 
-    if (!user && !isLoginPage && !isSetPasswordPage) {
+    if (!user && !isLoginPage && !isSetPasswordPage && !isAuthCallback) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
@@ -62,8 +63,9 @@ export async function proxy(request: NextRequest) {
   else {
     const localAuthCookie = request.cookies.get('enei_local_auth')
     const isSetPasswordPage = request.nextUrl.pathname.startsWith('/set-password')
+    const isAuthCallback = request.nextUrl.pathname.startsWith('/auth')
 
-    if (!localAuthCookie && !isLoginPage && !isSetPasswordPage) {
+    if (!localAuthCookie && !isLoginPage && !isSetPasswordPage && !isAuthCallback) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)

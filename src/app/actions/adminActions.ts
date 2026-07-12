@@ -115,7 +115,7 @@ export async function inviteUserAction(
     }
     
     const finalSiteUrl = siteUrl || 'http://localhost:3000'
-    const redirectTo = `${finalSiteUrl}/set-password`
+    const redirectTo = `${finalSiteUrl}/auth/callback?next=/set-password`
     
     // Send auth invitation to real email
     const { data, error } = await adminClient.auth.admin.inviteUserByEmail(realEmail, {
@@ -240,9 +240,23 @@ export async function sendPasswordResetAction(realEmail: string) {
   }
 
   try {
+    let siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+    if (!siteUrl) {
+      try {
+        const headersList = await headers()
+        const host = headersList.get('host')
+        const proto = headersList.get('x-forwarded-proto') || 'https'
+        if (host) {
+          siteUrl = `${proto}://${host}`
+        }
+      } catch (e) {
+        console.warn('Could not read request headers for siteUrl fallback:', e)
+      }
+    }
+    const finalSiteUrl = siteUrl || 'http://localhost:3000'
     const adminClient = createAdminClient()
     const { error } = await adminClient.auth.resetPasswordForEmail(realEmail, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/set-password`
+      redirectTo: `${finalSiteUrl}/auth/callback?next=/set-password`
     })
 
     if (error) throw error
