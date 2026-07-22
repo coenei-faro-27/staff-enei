@@ -262,13 +262,13 @@ export default function TaskDetailModal({
                 <span>Largar Tarefa</span>
               </button>
             ) : isAssigned ? (
-              <div className="border border-border-custom/60 text-text-secondary bg-transparent p-1.5 px-3 rounded-md text-xs font-medium flex items-center gap-1.5">
+              <div className="border border-blue-500/40 text-blue-400 bg-blue-500/5 p-1.5 px-3 rounded-md text-xs font-medium flex items-center gap-1.5">
                 <UserCheck size={14} strokeWidth={1.5} className="text-blue-500" />
                 <span>Assumida por <strong>{assignedName}</strong></span>
                 {canInteract && (
                   <button
                     onClick={handleToggleClaim}
-                    className="ml-1 text-[10px] underline text-text-secondary hover:text-text-primary cursor-pointer"
+                    className="ml-1 text-[10px] underline text-blue-400 hover:text-white cursor-pointer"
                   >
                     (Reassumir)
                   </button>

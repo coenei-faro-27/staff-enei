@@ -150,10 +150,10 @@ export default function TaskItem({
         ) : isAssigned ? (
           <div 
             title={`Assumida por ${assignedName}`}
-            className="border border-border-custom/60 text-text-secondary bg-transparent p-1.5 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5"
+            className="border border-blue-500/40 text-blue-400 bg-blue-500/5 p-1.5 px-2.5 rounded-md text-xs font-medium flex items-center gap-1.5"
           >
             <UserCheck size={14} strokeWidth={1.5} className="text-blue-500 shrink-0" />
-            <span className="truncate max-w-[110px] text-[11px]">{assignedName}</span>
+            <span className="truncate max-w-28 text-[11px]">{assignedName}</span>
           </div>
         ) : (
           <button
