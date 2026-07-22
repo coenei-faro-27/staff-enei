@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import TaskForm from '@/components/TaskForm'
 import TaskItem from '@/components/TaskItem'
+import TaskDetailModal from '@/components/TaskDetailModal'
 import { taskService, Task } from '@/services/taskService'
 import { profileService, UserProfile } from '@/services/profileService'
 
@@ -24,6 +25,9 @@ export default function TarefasPage() {
   const [filterType, setFilterType] = useState<'all' | 'private' | 'departmental'>('all')
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Focused floating card modal state
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Custom Delete Confirmation State
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -87,9 +91,44 @@ export default function TarefasPage() {
       setTasks((prev) =>
         prev.map((t) => (t.id === id ? { ...t, completed } : t))
       )
+      if (selectedTask && selectedTask.id === id) {
+        setSelectedTask((prev) => prev ? { ...prev, completed } : null)
+      }
+      setToast({
+        type: 'success',
+        message: completed ? 'Tarefa marcada como concluída!' : 'Tarefa reaberta.'
+      })
+      setTimeout(() => setToast(null), 2500)
     } catch (e) {
       console.error('Error toggling task:', e)
     }
+  }
+
+  const handleClaimTask = async (id: string, claim: boolean) => {
+    try {
+      const userToAssign = claim ? currentUser : null
+      const updated = await taskService.claimTask(id, userToAssign)
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? updated : t))
+      )
+      if (selectedTask && selectedTask.id === id) {
+        setSelectedTask(updated)
+      }
+      setToast({
+        type: 'success',
+        message: claim ? 'Assumiste esta tarefa!' : 'Largaste a tarefa.'
+      })
+      setTimeout(() => setToast(null), 2500)
+    } catch (e) {
+      console.error('Error claiming task:', e)
+    }
+  }
+
+  const handleTaskUpdated = (updatedTask: Task) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
+    )
+    setSelectedTask(updatedTask)
   }
 
   const handleDeleteTask = (id: string) => {
@@ -103,6 +142,9 @@ export default function TarefasPage() {
     try {
       await taskService.deleteTask(id)
       setTasks((prev) => prev.filter((t) => t.id !== id))
+      if (selectedTask?.id === id) {
+        setSelectedTask(null)
+      }
       setToast({
         type: 'delete',
         message: 'Tarefa eliminada com sucesso.'
@@ -268,7 +310,9 @@ export default function TarefasPage() {
                 task={task}
                 currentUser={currentUser}
                 onToggle={handleToggleTask}
+                onClaim={handleClaimTask}
                 onDelete={handleDeleteTask}
+                onSelectTask={(t) => setSelectedTask(t)}
               />
             ))
           ) : (
@@ -307,6 +351,17 @@ export default function TarefasPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Focused Floating Task Card Modal */}
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          currentUser={currentUser}
+          onClose={() => setSelectedTask(null)}
+          onTaskUpdated={handleTaskUpdated}
+          onDeleteTask={handleDeleteTask}
+        />
       )}
 
       {/* Custom Delete Confirmation Modal */}

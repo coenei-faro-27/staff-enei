@@ -37,18 +37,37 @@ $$;
 create table if not exists public.tasks (
   id uuid default gen_random_uuid() primary key,
   title text not null,
+  description text,
   completed boolean default false not null,
   department text,
   user_id uuid default auth.uid(),
-  assigned_to uuid,
+  assigned_to uuid references public.profiles(id) on delete set null,
+  attachments jsonb default '[]'::jsonb not null,
+  comments jsonb default '[]'::jsonb not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Garantir colunas se a tabela já existia antes
+alter table public.tasks add column if not exists description text;
 alter table public.tasks add column if not exists department text;
 alter table public.tasks add column if not exists user_id uuid default auth.uid();
 alter table public.tasks add column if not exists assigned_to uuid;
+alter table public.tasks add column if not exists attachments jsonb default '[]'::jsonb;
+alter table public.tasks add column if not exists comments jsonb default '[]'::jsonb;
 alter table public.tasks alter column user_id set default auth.uid();
+
+-- Garantir chave estrangeira para profiles
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.table_constraints 
+    where constraint_name = 'tasks_assigned_to_fkey'
+  ) then
+    alter table public.tasks 
+    add constraint tasks_assigned_to_fkey 
+    foreign key (assigned_to) references public.profiles(id) on delete set null;
+  end if;
+end $$;
 
 -- Ativar RLS
 alter table public.tasks enable row level security;
@@ -82,8 +101,7 @@ create policy "Atualização de tarefas" on public.tasks for update using (
   public.is_active_user(auth.uid()) and (
     public.get_user_role(auth.uid()) = 'admin' or
     (public.get_user_dept(auth.uid()) = 'Mesa' and (department is not null or user_id = auth.uid() or assigned_to = auth.uid())) or
-    (public.get_user_role(auth.uid()) in ('diretor', 'co-diretor') and (department = public.get_user_dept(auth.uid()) or user_id = auth.uid() or assigned_to = auth.uid())) or
-    (user_id = auth.uid())
+    (department = public.get_user_dept(auth.uid()) or user_id = auth.uid() or assigned_to = auth.uid())
   )
 );
 
