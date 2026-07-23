@@ -100,6 +100,8 @@ export default function ProfilePage() {
   }
 
   const executeLogout = async () => {
+    profileService.clearProfileCache()
+
     const isSupabaseConfigured = () => {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL
       const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

@@ -20,24 +20,24 @@ const isSupabaseConfigured = () => {
 }
 
 export const profileService = {
-  async getProfile(): Promise<UserProfile> {
-    // 1. Try to get from localStorage cache first for instant UI response
+  clearProfileCache() {
     if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('enei_user_profile')
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached)
-          // Fetch from Supabase in the background to update the cache silently
-          if (isSupabaseConfigured()) {
-            this.syncSupabaseProfileInBackground().catch(() => {})
-          }
-          return parsed
-        } catch {}
-      }
+      localStorage.removeItem('enei_user_profile')
+      window.dispatchEvent(new Event('profile-updated'))
     }
+  },
 
-    // 2. Local Mode Fallback
+  async getProfile(): Promise<UserProfile> {
+    // 1. Local Mode Fallback
     if (!isSupabaseConfigured()) {
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('enei_user_profile')
+        if (cached) {
+          try {
+            return JSON.parse(cached)
+          } catch {}
+        }
+      }
       const defaultProfile: UserProfile = {
         id: 'local-user',
         full_name: 'David Gonçalves',
@@ -54,8 +54,35 @@ export const profileService = {
       return defaultProfile
     }
 
-    // 3. Supabase fallback on first load
-    return this.syncSupabaseProfileInBackground()
+    // 2. Supabase Mode: Get currently authenticated user
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      this.clearProfileCache()
+      throw new Error('User not authenticated')
+    }
+
+    // 3. Verify cached profile against active authenticated user ID
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('enei_user_profile')
+      if (cached) {
+        try {
+          const parsed: UserProfile = JSON.parse(cached)
+          if (parsed && parsed.id === user.id) {
+            // Cache is valid for the active user -> return immediately & sync in background
+            this.syncSupabaseProfileForUser(user.id).catch(() => {})
+            return parsed
+          } else {
+            // Cache belongs to a previous user -> invalidate cache!
+            localStorage.removeItem('enei_user_profile')
+          }
+        } catch {}
+      }
+    }
+
+    // 4. Fetch fresh profile directly from DB
+    return this.syncSupabaseProfileForUser(user.id)
   },
 
   async syncSupabaseProfileInBackground(): Promise<UserProfile> {
@@ -64,65 +91,76 @@ export const profileService = {
     if (!user) {
       throw new Error('User not authenticated')
     }
+    return this.syncSupabaseProfileForUser(user.id)
+  },
 
+  async syncSupabaseProfileForUser(userId: string): Promise<UserProfile> {
+    const supabase = createClient()
+    
     // Try to get profile from DB
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single()
 
+    let finalProfile: UserProfile
+
     if (error || !data) {
-      // If profile does not exist, create a default one
+      const { data: { user } } = await supabase.auth.getUser()
+      const userEmail = user?.email || 'Membro do Staff'
       const defaultProfile: UserProfile = {
-        id: user.id,
-        full_name: user.email?.split('@')[0] || 'Membro do Staff',
+        id: userId,
+        full_name: userEmail.split('@')[0],
         role: 'Membro',
         department: 'Geral',
         avatar_color: 'bg-indigo-500',
-        email: user.email,
-        login_email: user.email,
+        email: userEmail,
+        login_email: userEmail,
         account_state: 'active'
       }
 
       await supabase.from('profiles').upsert(defaultProfile)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('enei_user_profile', JSON.stringify(defaultProfile))
-      }
-      return defaultProfile
-    }
-
-    let accountState = data.account_state || (data.is_pending ? 'pending' : data.is_active !== false ? 'active' : 'inactive')
-    if (accountState === 'pending') {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ account_state: 'active' })
-        .eq('id', user.id)
-      if (updateError) {
-        // Fallback if schema migration has not run yet
-        await supabase
+      finalProfile = defaultProfile
+    } else {
+      let accountState = data.account_state || (data.is_pending ? 'pending' : data.is_active !== false ? 'active' : 'inactive')
+      if (accountState === 'pending') {
+        const { error: updateError } = await supabase
           .from('profiles')
-          .update({ is_pending: false })
-          .eq('id', user.id)
+          .update({ account_state: 'active' })
+          .eq('id', userId)
+        if (updateError) {
+          await supabase
+            .from('profiles')
+            .update({ is_pending: false })
+            .eq('id', userId)
+        }
+        accountState = 'active'
       }
-      accountState = 'active'
-    }
 
-    const profile: UserProfile = {
-      id: data.id,
-      full_name: data.full_name || 'Membro do Staff',
-      role: data.role || 'Membro',
-      department: data.department || 'Geral',
-      avatar_color: data.avatar_color || 'bg-indigo-500',
-      email: data.email,
-      login_email: data.login_email,
-      account_state: accountState
+      finalProfile = {
+        id: data.id,
+        full_name: data.full_name || 'Membro do Staff',
+        role: data.role || 'Membro',
+        department: data.department || 'Geral',
+        avatar_color: data.avatar_color || 'bg-indigo-500',
+        email: data.email,
+        login_email: data.login_email,
+        account_state: accountState
+      }
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('enei_user_profile', JSON.stringify(profile))
+      const oldCached = localStorage.getItem('enei_user_profile')
+      localStorage.setItem('enei_user_profile', JSON.stringify(finalProfile))
+      
+      // Dispatch profile-updated event if cache changed to trigger UI re-render
+      if (oldCached !== JSON.stringify(finalProfile)) {
+        window.dispatchEvent(new Event('profile-updated'))
+      }
     }
-    return profile
+
+    return finalProfile
   },
 
   async updateProfile(profile: Omit<UserProfile, 'id'>): Promise<UserProfile> {
@@ -133,6 +171,7 @@ export const profileService = {
       }
       if (typeof window !== 'undefined') {
         localStorage.setItem('enei_user_profile', JSON.stringify(updated))
+        window.dispatchEvent(new Event('profile-updated'))
       }
       return updated
     }
@@ -151,6 +190,7 @@ export const profileService = {
     // Save to local cache instantly for zero-latency UI reactivity
     if (typeof window !== 'undefined') {
       localStorage.setItem('enei_user_profile', JSON.stringify(updated))
+      window.dispatchEvent(new Event('profile-updated'))
     }
 
     const { error } = await supabase

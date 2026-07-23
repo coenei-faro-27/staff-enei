@@ -63,6 +63,11 @@ export default function LoginPage() {
           throw error
         }
 
+        // Clear any previous profile cache before navigating
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('enei_user_profile')
+        }
+
         window.location.href = '/'
       } catch (err: unknown) {
         console.error('Login error:', err)
