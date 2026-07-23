@@ -300,8 +300,9 @@ alter table public.profiles enable row level security;
 
 -- Políticas de RLS para 'profiles'
 drop policy if exists "Leitura pública de perfis" on public.profiles;
+drop policy if exists "Leitura de perfis" on public.profiles;
 create policy "Leitura de perfis" on public.profiles for select using (
-  public.is_active_user(auth.uid())
+  auth.uid() = id or public.is_active_user(auth.uid())
 );
 
 drop policy if exists "Utilizadores inserem o próprio perfil" on public.profiles;
@@ -310,8 +311,9 @@ create policy "Utilizadores inserem o próprio perfil" on public.profiles for in
 );
 
 drop policy if exists "Utilizadores atualizam o próprio perfil" on public.profiles;
+drop policy if exists "Atualização de perfis" on public.profiles;
 create policy "Atualização de perfis" on public.profiles for update using (
-  public.get_user_role(auth.uid()) = 'admin' or (auth.uid() = id and public.is_active_user(auth.uid()))
+  public.get_user_role(auth.uid()) = 'admin' or auth.uid() = id
 );
 
 

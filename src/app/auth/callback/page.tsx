@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Loader2 } from 'lucide-react'
 
 function AuthCallbackContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -15,6 +14,13 @@ function AuthCallbackContent() {
     const next = searchParams.get('next') || '/set-password'
     const code = searchParams.get('code')
     let isMounted = true
+
+    const redirectWithHardReload = (targetPath: string) => {
+      if (isMounted) {
+        // Use hard window navigation so browser sends all newly updated cookies in HTTP headers to server
+        window.location.href = targetPath
+      }
+    }
 
     const processAuth = async () => {
       try {
@@ -33,7 +39,7 @@ function AuthCallbackContent() {
 
             if (!error && data.session) {
               console.log('[Auth Callback] Session established via setSession from URL hash')
-              if (isMounted) router.push(next)
+              redirectWithHardReload(next)
               return
             } else if (error) {
               console.error('[Auth Callback] setSession error:', error)
@@ -46,7 +52,7 @@ function AuthCallbackContent() {
           const { data, error } = await supabase.auth.exchangeCodeForSession(code)
           if (!error && data.session) {
             console.log('[Auth Callback] Session established via exchangeCodeForSession')
-            if (isMounted) router.push(next)
+            redirectWithHardReload(next)
             return
           } else if (error) {
             console.error('[Auth Callback] exchangeCodeForSession error:', error)
@@ -57,7 +63,7 @@ function AuthCallbackContent() {
         const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           console.log('[Auth Callback] Existing session found')
-          if (isMounted) router.push(next)
+          redirectWithHardReload(next)
           return
         }
 
@@ -66,7 +72,9 @@ function AuthCallbackContent() {
           console.warn('[Auth Callback] No valid tokens or session found')
           setErrorMsg('Não foi possível verificar os dados de autenticação. A redirecionar...')
           setTimeout(() => {
-            if (isMounted) router.push('/login?error=auth_callback_failed')
+            if (isMounted) {
+              window.location.href = '/login?error=auth_callback_failed'
+            }
           }, 1500)
         }
       } catch (err) {
@@ -74,7 +82,9 @@ function AuthCallbackContent() {
         if (isMounted) {
           setErrorMsg('Ocorreu um erro no processo de autenticação.')
           setTimeout(() => {
-            if (isMounted) router.push('/login?error=auth_callback_failed')
+            if (isMounted) {
+              window.location.href = '/login?error=auth_callback_failed'
+            }
           }, 1500)
         }
       }
@@ -85,7 +95,7 @@ function AuthCallbackContent() {
     return () => {
       isMounted = false
     }
-  }, [router, searchParams])
+  }, [searchParams])
 
   return (
     <div className="border border-border-custom bg-secondary-bg p-8 rounded-xl shadow-2xl max-w-sm w-full text-center space-y-4 animate-fade-in">
