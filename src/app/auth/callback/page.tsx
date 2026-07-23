@@ -13,59 +13,77 @@ function AuthCallbackContent() {
   useEffect(() => {
     const supabase = createClient()
     const next = searchParams.get('next') || '/set-password'
+    const code = searchParams.get('code')
     let isMounted = true
 
-    const handleAuthRedirect = (targetPath: string) => {
-      if (isMounted) {
-        router.push(targetPath)
-      }
-    }
-
-    // 1. Listen for Supabase auth state changes (captures #access_token from hash automatically)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth Callback] Auth state event:', event, 'Session active:', !!session)
-      
-      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || event === 'USER_UPDATED' || session) {
-        handleAuthRedirect(next)
-      }
-    })
-
-    // 2. Immediate check in case session was already initialized or stored
-    const checkExistingSession = async () => {
+    const processAuth = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        if (error) {
-          console.error('[Auth Callback] GetSession error:', error)
+        // 1. Check window.location.hash for access_token & refresh_token
+        const hash = typeof window !== 'undefined' ? window.location.hash : ''
+        if (hash && hash.includes('access_token')) {
+          const hashParams = new URLSearchParams(hash.substring(1))
+          const accessToken = hashParams.get('access_token')
+          const refreshToken = hashParams.get('refresh_token')
+
+          if (accessToken && refreshToken) {
+            const { data, error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            })
+
+            if (!error && data.session) {
+              console.log('[Auth Callback] Session established via setSession from URL hash')
+              if (isMounted) router.push(next)
+              return
+            } else if (error) {
+              console.error('[Auth Callback] setSession error:', error)
+            }
+          }
         }
+
+        // 2. Check query param code (PKCE flow)
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          if (!error && data.session) {
+            console.log('[Auth Callback] Session established via exchangeCodeForSession')
+            if (isMounted) router.push(next)
+            return
+          } else if (error) {
+            console.error('[Auth Callback] exchangeCodeForSession error:', error)
+          }
+        }
+
+        // 3. Check existing active session
+        const { data: { session } } = await supabase.auth.getSession()
         if (session) {
-          handleAuthRedirect(next)
+          console.log('[Auth Callback] Existing session found')
+          if (isMounted) router.push(next)
           return
         }
+
+        // 4. Fallback if no tokens or session found
+        if (isMounted) {
+          console.warn('[Auth Callback] No valid tokens or session found')
+          setErrorMsg('Não foi possível verificar os dados de autenticação. A redirecionar...')
+          setTimeout(() => {
+            if (isMounted) router.push('/login?error=auth_callback_failed')
+          }, 1500)
+        }
       } catch (err) {
-        console.error('[Auth Callback] Check session exception:', err)
+        console.error('[Auth Callback] Exception during processing:', err)
+        if (isMounted) {
+          setErrorMsg('Ocorreu um erro no processo de autenticação.')
+          setTimeout(() => {
+            if (isMounted) router.push('/login?error=auth_callback_failed')
+          }, 1500)
+        }
       }
     }
 
-    checkExistingSession()
-
-    // 3. Fallback timeout: If after 6 seconds no session is captured, redirect to login with error
-    const timeoutId = setTimeout(async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session && isMounted) {
-        console.warn('[Auth Callback] Session verification timed out.')
-        setErrorMsg('Não foi possível verificar a tua sessão. Por favor tenta novamente.')
-        setTimeout(() => {
-          if (isMounted) {
-            router.push('/login?error=auth_callback_failed')
-          }
-        }, 1500)
-      }
-    }, 6000)
+    processAuth()
 
     return () => {
       isMounted = false
-      subscription.unsubscribe()
-      clearTimeout(timeoutId)
     }
   }, [router, searchParams])
 
