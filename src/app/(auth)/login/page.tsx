@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react'
 import Image from 'next/image'
-import { createClient } from '@/utils/supabase/client'
 import { Loader2, Lock, Mail, AlertCircle, Sparkles, CheckCircle } from 'lucide-react'
-import { resolveLoginEmailAction } from '@/app/actions/adminActions'
+import { loginAction, forgotPasswordAction } from '@/app/actions/authActions'
 
 const isSupabaseConfigured = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -29,55 +28,25 @@ export default function LoginPage() {
     setLoading(true)
     setErrorMsg(null)
 
-    if (localMode) {
-      // Local mode authentication
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      if (email.trim() && password.length >= 6) {
-        document.cookie = "enei_local_auth=true; path=/; max-age=86400"
-        window.location.href = '/'
-      } else {
-        setErrorMsg('Credenciais inválidas. O e-mail deve ser preenchido e a palavra-passe deve ter pelo menos 6 caracteres.')
+    try {
+      const res = await loginAction({ email, password })
+
+      if (!res.success) {
+        setErrorMsg(res.error || 'Erro ao efetuar login. Verifica as tuas credenciais.')
         setLoading(false)
+        return
       }
-    } else {
-      // Supabase authentication
-      try {
-        let finalEmail = email.trim()
-        
-        // Resolve platform login prefix/email to contact email
-        if (!finalEmail.includes('@') || finalEmail.endsWith('@coenei.pt')) {
-          const resolved = await resolveLoginEmailAction(finalEmail)
-          if (resolved) {
-            finalEmail = resolved
-          }
-        }
 
-        const supabase = createClient()
-        const { error } = await supabase.auth.signInWithPassword({
-          email: finalEmail,
-          password
-        })
-
-        if (error) {
-          throw error
-        }
-
-        // Clear any previous profile cache before navigating
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('enei_user_profile')
-        }
-
-        window.location.href = '/'
-      } catch (err: unknown) {
-        console.error('Login error:', err)
-        if (err instanceof Error) {
-          setErrorMsg(err.message || 'Erro ao efetuar login. Verifica as tuas credenciais.')
-        } else {
-          setErrorMsg('Ocorreu um erro desconhecido ao efetuar login.')
-        }
-        setLoading(false)
+      // Clear any previous profile cache before navigating
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('enei_user_profile')
       }
+
+      window.location.href = '/'
+    } catch (err: unknown) {
+      console.error('Login error:', err)
+      setErrorMsg('Serviço de autenticação temporariamente indisponível. Tenta novamente.')
+      setLoading(false)
     }
   }
 
@@ -87,41 +56,24 @@ export default function LoginPage() {
     setErrorMsg(null)
     setResetSuccess(false)
 
-    if (localMode) {
-      // Local simulation
-      await new Promise(resolve => setTimeout(resolve, 800))
+    try {
+      const res = await forgotPasswordAction(resetEmail)
+
+      if (!res.success) {
+        setErrorMsg(res.error || 'Erro ao enviar link de recuperação. Tenta novamente.')
+        setLoading(false)
+        return
+      }
+
       setResetSuccess(true)
       setLoading(false)
-    } else {
-      try {
-        let finalEmail = resetEmail.trim()
-        
-        // Resolve platform login prefix/email to contact email
-        if (!finalEmail.includes('@') || finalEmail.endsWith('@coenei.pt')) {
-          const resolved = await resolveLoginEmailAction(finalEmail)
-          if (resolved) {
-            finalEmail = resolved
-          }
-        }
-
-        const supabase = createClient()
-        const { error } = await supabase.auth.resetPasswordForEmail(finalEmail, {
-          redirectTo: `${window.location.origin}/auth/callback?next=/set-password`
-        })
-
-        if (error) {
-          throw error
-        }
-
-        setResetSuccess(true)
-        setLoading(false)
-      } catch (err: unknown) {
-        console.error('Reset password error:', err)
-        setErrorMsg(err instanceof Error ? err.message : 'Erro ao enviar link de recuperação. Tente novamente.')
-        setLoading(false)
-      }
+    } catch (err: unknown) {
+      console.error('Reset password error:', err)
+      setErrorMsg('Serviço de autenticação temporariamente indisponível. Tenta novamente.')
+      setLoading(false)
     }
   }
+
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background px-4">
